@@ -18,6 +18,11 @@
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
       }
 
+      .order-card.special-rate {
+        border-left: 5px solid #ff6b35;
+        background: #fff8f5;
+      }
+
       .order-header {
         display: flex;
         justify-content: space-between;
@@ -25,6 +30,30 @@
         margin-bottom: 15px;
         border-bottom: 1px solid #eee;
         padding-bottom: 10px;
+      }
+
+      .special-rate-indicator {
+        background: #ff6b35;
+        color: white;
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 11px;
+        font-weight: bold;
+        margin-left: 10px;
+      }
+
+      .special-rate-details {
+        background: #fff3e0;
+        border: 1px solid #ffcc80;
+        padding: 10px;
+        border-radius: 4px;
+        margin: 10px 0;
+        font-size: 12px;
+      }
+
+      .special-rate-details ul {
+        margin: 5px 0;
+        padding-left: 20px;
       }
 
       .customer-info {
@@ -122,6 +151,15 @@
         margin: 15px 0;
       }
 
+      .pricing-comparison {
+        background: #f8f9fa;
+        padding: 10px;
+        border-radius: 4px;
+        margin: 10px 0;
+        font-size: 12px;
+        border-left: 3px solid #6c757d;
+      }
+
       .balance-positive {
         color: #28a745;
         font-weight: bold;
@@ -138,12 +176,28 @@
     <% if (orders.length === 0) { %>
     <p>No orders found.</p>
     <% } else { %> <% orders.forEach(order => { %>
-    <div class="order-card">
+    <div class="order-card <%= order.hasSpecialRate ? 'special-rate' : '' %>">
       <!-- Order Header -->
       <div class="order-header">
-        <h3>Order #<%= order.order_id %></h3>
+        <h3>
+          Order #<%= order.order_id %> <% if (order.hasSpecialRate) { %>
+          <span class="special-rate-indicator">*Special Rate Applied</span>
+          <% } %>
+        </h3>
         <span><%= new Date(order.order_date).toLocaleString() %></span>
       </div>
+
+      <!-- Special Rate Details -->
+      <% if (order.hasSpecialRate && order.specialRateType.length > 0) { %>
+      <div class="special-rate-details">
+        <strong>Special Rate Applied:</strong>
+        <ul>
+          <% order.specialRateType.forEach(type => { %>
+          <li><%= type %></li>
+          <% }); %>
+        </ul>
+      </div>
+      <% } %>
 
       <!-- Customer Info -->
       <div class="customer-info">
@@ -181,14 +235,25 @@
       <div class="order-summary">
         <h4>Order Summary</h4>
         <p>
-          <strong>Items Subtotal:</strong> $<%= (order.total_price -
-          order.delivery_fee).toFixed(2) %>
+          <strong>Items Subtotal:</strong> $<%= order.itemsSubtotal.toFixed(2)
+          %>
         </p>
         <p>
           <strong>Delivery Fee:</strong> $<%= order.delivery_fee.toFixed(2) %>
+          <% if (Math.abs(order.delivery_fee - order.standardDeliveryFee) >
+          0.01) { %>
+          <em style="color: #ff6b35"
+            >(Standard: $<%= order.standardDeliveryFee.toFixed(2) %>)</em
+          >
+          <% } %>
         </p>
         <p>
-          <strong>Total Price:</strong> $<%= order.total_price.toFixed(2) %>
+          <strong>Total Price:</strong> $<%= order.total_price.toFixed(2) %> <%
+          if (order.total_price < order.standardTotal - 0.01) { %>
+          <em style="color: #ff6b35"
+            >(Standard: $<%= order.standardTotal.toFixed(2) %>)</em
+          >
+          <% } %>
         </p>
         <p><strong>Payments Made:</strong> $<%= order.payments.toFixed(2) %></p>
         <p>
@@ -201,6 +266,26 @@
         </p>
         <p><strong>Status:</strong> <%= order.status %></p>
       </div>
+
+      <!-- Pricing Comparison (for special rate orders) -->
+      <% if (order.hasSpecialRate) { %>
+      <div class="pricing-comparison">
+        <strong>Pricing Comparison:</strong><br />
+        Standard Total: $<%= order.standardTotal.toFixed(2) %> | Current Total:
+        $<%= order.total_price.toFixed(2) %> | <% if (order.standardTotal >
+        order.total_price) { %>
+        <span style="color: #28a745"
+          >Savings: $<%= (order.standardTotal - order.total_price).toFixed(2)
+          %></span
+        >
+        <% } else if (order.standardTotal < order.total_price) { %>
+        <span style="color: #dc3545"
+          >Additional: $<%= (order.total_price - order.standardTotal).toFixed(2)
+          %></span
+        >
+        <% } %>
+      </div>
+      <% } %>
 
       <!-- Admin Controls -->
       <div class="controls">
@@ -264,6 +349,53 @@
             </div>
             <button type="submit" class="btn btn-danger">Apply Discount</button>
           </form>
+        </div>
+
+        <!-- Order Status Controls -->
+        <div
+          class="control-row"
+          style="
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #ddd;
+          "
+        >
+          <% if (order.status === 'open') { %>
+          <!-- Mark as Delivered -->
+          <form
+            method="POST"
+            action="/admin/mark-delivered/<%= order.order_id %>"
+          >
+            <button
+              type="submit"
+              class="btn btn-primary"
+              onclick="return confirm('Mark this order as delivered?')"
+            >
+              ✓ Mark as Delivered
+            </button>
+          </form>
+          <% } else { %>
+          <!-- Reopen Order -->
+          <form method="POST" action="/admin/reopen/<%= order.order_id %>">
+            <button
+              type="submit"
+              class="btn btn-warning"
+              onclick="return confirm('Reopen this order?')"
+            >
+              ↻ Reopen Order
+            </button>
+          </form>
+          <% } %>
+
+          <!-- Order Status Display -->
+          <div style="display: flex; align-items: center; margin-left: 15px">
+            <strong>Status: </strong>
+            <span
+              style="padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; margin-left: 5px; background-color: <%= order.status === 'open' ? '#28a745' : '#6c757d' %>; color: white;"
+            >
+              <%= order.status === 'open' ? 'OPEN' : 'DELIVERED' %>
+            </span>
+          </div>
         </div>
       </div>
     </div>
