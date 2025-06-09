@@ -1,154 +1,272 @@
-<h1>Admin Dashboard</h1>
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Admin Dashboard</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 20px;
+        background-color: #f5f5f5;
+      }
 
-<% orders.forEach(order => { %>
-<div
-  style="margin-bottom: 1rem; padding: 1rem; border: 1px solid #ccc; background-color: <%= order.status === 'closed' ? '#f0f8f0' : '#fff' %>;"
->
-  <strong>Order ID:</strong> <%= order.order_id %><br />
-  <strong>Date:</strong> <%= order.order_date %><br />
-  <strong>Customer:</strong> <%= order.name %><br />
-  <strong>Address:</strong> <%= order.address %><br />
-  <strong>Phone:</strong> <%= order.phone %><br />
-  <strong>Email:</strong> <%= order.email %><br />
+      .order-card {
+        background: white;
+        border: 1px solid #ddd;
+        padding: 20px;
+        margin: 20px 0;
+        border-radius: 8px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+      }
 
-  <!-- Billing Progression Section -->
-  <div
-    style="
-      background-color: #f8f9fa;
-      padding: 10px;
-      margin: 10px 0;
-      border-radius: 5px;
-      border-left: 4px solid #007bff;
-    "
-  >
-    <% if (order.previous_balance > 0) { %>
-    <strong>Previous Balance Due:</strong>
-    <span style="color: #dc3545; font-weight: bold"
-      >$<%= order.previous_balance.toFixed(2) %></span
-    ><br />
-    <% } %>
+      .order-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 10px;
+      }
 
-    <strong>Items Subtotal:</strong> $<%= (order.total_price -
-    order.delivery_fee).toFixed(2) %><br />
-    <strong>Delivery Fee:</strong> $<%= order.delivery_fee.toFixed(2) %>
-    <em style="color: #666; font-size: 0.9em">
-      (<%= getDeliveryRateInfo(order.total_price - order.delivery_fee).rate %>) </em
-    ><br />
-    <strong>Current Order Total:</strong> $<%= order.total_price.toFixed(2)
-    %><br />
+      .customer-info {
+        background: #f8f9fa;
+        padding: 15px;
+        border-radius: 4px;
+        margin-bottom: 15px;
+      }
 
-    <% if (order.payments > 0) { %>
-    <strong>Payments Made:</strong>
-    <span style="color: #28a745; font-weight: bold"
-      >-$<%= order.payments.toFixed(2) %></span
-    ><br />
-    <% } %> <% const totalDue = (order.previous_balance || 0) +
-    order.total_price - order.payments; %>
-    <hr style="margin: 8px 0; border: 1px solid #dee2e6" />
-    <strong style="font-size: 1.1em">Total Balance Due:</strong>
-    <span
-      style="color: <%= totalDue <= 0 ? '#28a745' : '#dc3545' %>; font-weight: bold; font-size: 1.1em;"
-    >
-      $<%= totalDue.toFixed(2) %>
-    </span>
-  </div>
+      .order-items table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 15px 0;
+      }
 
-  <% if (order.balance < 0) { %>
-  <strong>Order Credit:</strong>
-  <span style="color: blue; font-weight: bold"
-    >$<%= Math.abs(order.balance).toFixed(2) %></span
-  ><br />
-  <% } %>
+      .order-items th,
+      .order-items td {
+        padding: 8px;
+        border: 1px solid #dee2e6;
+        text-align: left;
+      }
 
-  <strong>Status:</strong>
-  <span
-    style="color: <%= order.status === 'closed' ? 'green' : 'orange' %>; font-weight: bold;"
-    ><%= order.status %></span
-  >
+      .order-items th {
+        background-color: #f8f9fa;
+      }
 
-  <% if (order.status === 'open') { %>
-  <form
-    method="POST"
-    action="/admin/close/<%= order.order_id %>"
-    style="display: inline; margin-left: 10px"
-  >
-    <button
-      type="submit"
-      style="
-        background-color: #4caf50;
-        color: white;
-        padding: 5px 10px;
+      .controls {
+        background: #fff3cd;
+        padding: 15px;
+        border-radius: 8px;
+        margin: 15px 0;
+        border: 1px solid #ffeaa7;
+      }
+
+      .control-row {
+        display: flex;
+        gap: 15px;
+        margin: 10px 0;
+        align-items: end;
+      }
+
+      .control-group {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .control-group label {
+        font-size: 12px;
+        margin-bottom: 5px;
+        font-weight: bold;
+      }
+
+      .control-group input {
+        padding: 8px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        width: 100px;
+      }
+
+      .btn {
+        padding: 8px 16px;
         border: none;
-        border-radius: 3px;
+        border-radius: 4px;
         cursor: pointer;
-      "
-    >
-      Mark as Delivered
-    </button>
-  </form>
-  <% } else if (order.status === 'closed') { %>
-  <form
-    method="POST"
-    action="/admin/reopen/<%= order.order_id %>"
-    style="display: inline; margin-left: 10px"
-  >
-    <button
-      type="submit"
-      style="
-        background-color: #ff9800;
-        color: white;
-        padding: 5px 10px;
-        border: none;
-        border-radius: 3px;
-        cursor: pointer;
-      "
-    >
-      Return to Open
-    </button>
-  </form>
-  <% } %>
+        font-size: 12px;
+        font-weight: bold;
+      }
 
-  <!-- Allow payments regardless of balance - can create credits -->
-  <form
-    method="POST"
-    action="/admin/pay/<%= order.order_id %>"
-    style="display: inline; margin-left: 10px"
-  >
-    <input
-      type="number"
-      name="payment"
-      placeholder="Payment amount"
-      step="0.01"
-      min="0.01"
-      style="width: 120px; padding: 5px; margin-right: 5px"
-      required
-    />
-    <button
-      type="submit"
-      style="
-        background-color: #2196f3;
+      .btn-primary {
+        background-color: #007bff;
         color: white;
-        padding: 5px 10px;
-        border: none;
-        border-radius: 3px;
-        cursor: pointer;
-      "
-    >
-      Record Payment
-    </button>
-  </form>
+      }
+      .btn-success {
+        background-color: #28a745;
+        color: white;
+      }
+      .btn-warning {
+        background-color: #ffc107;
+        color: #000;
+      }
+      .btn-danger {
+        background-color: #dc3545;
+        color: white;
+      }
 
-  <% if (order.items.length > 0) { %>
-  <ul>
-    <% order.items.forEach(item => { %>
-    <li>
-      <%= item.color %> - <%= item.variant %>: <%= item.quantity %> × ($<%=
-      item.subtotal.toFixed(2) %>)
-    </li>
-    <% }) %>
-  </ul>
-  <% } else { %>
-  <p><em>No items found for this order.</em></p>
-  <% } %>
-</div>
-<% }) %>
+      .btn:hover {
+        opacity: 0.9;
+      }
+
+      .order-summary {
+        background: #e7f3ff;
+        padding: 15px;
+        border: 1px solid #b3d7ff;
+        border-radius: 4px;
+        margin: 15px 0;
+      }
+
+      .balance-positive {
+        color: #28a745;
+        font-weight: bold;
+      }
+      .balance-negative {
+        color: #dc3545;
+        font-weight: bold;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Admin Dashboard</h1>
+
+    <% if (orders.length === 0) { %>
+    <p>No orders found.</p>
+    <% } else { %> <% orders.forEach(order => { %>
+    <div class="order-card">
+      <!-- Order Header -->
+      <div class="order-header">
+        <h3>Order #<%= order.order_id %></h3>
+        <span><%= new Date(order.order_date).toLocaleString() %></span>
+      </div>
+
+      <!-- Customer Info -->
+      <div class="customer-info">
+        <h4>Customer Details</h4>
+        <p><strong>Name:</strong> <%= order.name %></p>
+        <p><strong>Phone:</strong> <%= order.phone %></p>
+        <p><strong>Email:</strong> <%= order.email %></p>
+        <p><strong>Address:</strong> <%= order.address %></p>
+      </div>
+
+      <!-- Order Items -->
+      <div class="order-items">
+        <h4>Items Ordered</h4>
+        <table>
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Quantity</th>
+              <th>Price</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% order.items.forEach(item => { %>
+            <tr>
+              <td><%= item.color %> <%= item.variant %></td>
+              <td><%= item.quantity %></td>
+              <td>$<%= item.subtotal.toFixed(2) %></td>
+            </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Order Summary -->
+      <div class="order-summary">
+        <h4>Order Summary</h4>
+        <p>
+          <strong>Items Subtotal:</strong> $<%= (order.total_price -
+          order.delivery_fee).toFixed(2) %>
+        </p>
+        <p>
+          <strong>Delivery Fee:</strong> $<%= order.delivery_fee.toFixed(2) %>
+        </p>
+        <p>
+          <strong>Total Price:</strong> $<%= order.total_price.toFixed(2) %>
+        </p>
+        <p><strong>Payments Made:</strong> $<%= order.payments.toFixed(2) %></p>
+        <p>
+          <strong>Balance Due:</strong>
+          <span
+            class="<%= order.balance <= 0 ? 'balance-positive' : 'balance-negative' %>"
+          >
+            $<%= order.balance.toFixed(2) %>
+          </span>
+        </p>
+        <p><strong>Status:</strong> <%= order.status %></p>
+      </div>
+
+      <!-- Admin Controls -->
+      <div class="controls">
+        <h4>Admin Controls</h4>
+
+        <div class="control-row">
+          <!-- Record Payment -->
+          <form method="POST" action="/admin/pay/<%= order.order_id %>">
+            <div class="control-group">
+              <label>Record Payment:</label>
+              <input
+                type="number"
+                name="payment"
+                step="0.01"
+                min="0.01"
+                placeholder="Amount"
+                required
+              />
+            </div>
+            <button type="submit" class="btn btn-success">
+              Record Payment
+            </button>
+          </form>
+
+          <!-- Adjust Delivery Fee -->
+          <form
+            method="POST"
+            action="/admin/adjust-delivery/<%= order.order_id %>"
+          >
+            <div class="control-group">
+              <label>Delivery Fee:</label>
+              <input
+                type="number"
+                name="delivery_fee"
+                step="0.01"
+                min="0"
+                value="<%= order.delivery_fee.toFixed(2) %>"
+                required
+              />
+            </div>
+            <button type="submit" class="btn btn-warning">
+              Update Delivery
+            </button>
+          </form>
+
+          <!-- Apply Discount -->
+          <form
+            method="POST"
+            action="/admin/add-discount/<%= order.order_id %>"
+          >
+            <div class="control-group">
+              <label>Apply Discount:</label>
+              <input
+                type="number"
+                name="discount"
+                step="0.01"
+                min="0.01"
+                placeholder="Amount"
+                required
+              />
+            </div>
+            <button type="submit" class="btn btn-danger">Apply Discount</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    <% }); %> <% } %>
+  </body>
+</html>

@@ -2,26 +2,6 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db/connection");
 
-// Helper function to determine delivery rate based on order value
-function getDeliveryRateInfo(itemsSubtotal) {
-  if (itemsSubtotal < 50) {
-    return {
-      rate: "$10.00 flat rate",
-      rateText: "($10 flat rate for orders under $50)",
-    };
-  } else if (itemsSubtotal <= 75) {
-    return { rate: "15%", rateText: "(15% for orders $51-75)" };
-  } else if (itemsSubtotal <= 100) {
-    return { rate: "12%", rateText: "(12% for orders $76-100)" };
-  } else if (itemsSubtotal <= 150) {
-    return { rate: "10%", rateText: "(10% for orders $101-150)" };
-  } else if (itemsSubtotal <= 250) {
-    return { rate: "8%", rateText: "(8% for orders $151-250)" };
-  } else {
-    return { rate: "6%", rateText: "(6% for orders over $251)" };
-  }
-}
-
 // Show all recent orders with customer info
 router.get("/", (req, res) => {
   const orderSql = `
@@ -33,7 +13,10 @@ router.get("/", (req, res) => {
   `;
 
   db.all(orderSql, [], (err, orders) => {
-    if (err) return res.status(500).send("Error retrieving orders.");
+    if (err) {
+      console.error("Error retrieving orders:", err);
+      return res.status(500).send("Error retrieving orders.");
+    }
 
     const orderIds = orders.map((o) => o.order_id);
     if (orderIds.length === 0) return res.render("admin", { orders: [] });
@@ -47,97 +30,22 @@ router.get("/", (req, res) => {
     `;
 
     db.all(itemSql, orderIds, (err, items) => {
-      if (err) return res.status(500).send("Error retrieving items.");
+      if (err) {
+        console.error("Error retrieving items:", err);
+        return res.status(500).send("Error retrieving items.");
+      }
 
       // Attach items to their matching order
       orders.forEach((order) => {
         order.items = items.filter((i) => i.order_id === order.order_id);
       });
 
-      // Calculate customer total outstanding balances
-      const customerBalancesSql = `
-        SELECT customer_id, SUM(balance) as total_outstanding_balance
-        FROM orders 
-        WHERE balance > 0
-        GROUP BY customer_id
-      `;
-
-      db.all(customerBalancesSql, [], (err, customerBalances) => {
-        if (err)
-          return res.status(500).send("Error calculating customer balances.");
-
-        // Create a map of customer_id to total outstanding balance
-        const customerBalanceMap = {};
-        customerBalances.forEach((cb) => {
-          customerBalanceMap[cb.customer_id] = cb.total_outstanding_balance;
-        });
-
-        // Calculate previous balance for each order (balance from orders before this one)
-        const promises = orders.map((order) => {
-          return new Promise((resolve, reject) => {
-            const previousBalanceSql = `
-              SELECT SUM(balance) as previous_balance
-              FROM orders 
-              WHERE customer_id = ? AND order_date < ? AND balance > 0
-            `;
-
-            db.get(
-              previousBalanceSql,
-              [order.customer_id, order.order_date],
-              (err, result) => {
-                if (err) {
-                  reject(err);
-                } else {
-                  order.previous_balance = result.previous_balance || 0;
-                  order.customer_total_outstanding =
-                    customerBalanceMap[order.customer_id] || 0;
-                  resolve(order);
-                }
-              }
-            );
-          });
-        });
-
-        Promise.all(promises)
-          .then(() => {
-            res.render("admin", { orders, getDeliveryRateInfo });
-          })
-          .catch((err) => {
-            console.error("Error calculating previous balances:", err);
-            res.status(500).send("Error calculating previous balances");
-          });
-      });
+      res.render("admin", { orders });
     });
   });
 });
 
-// POST route to mark an order as delivered
-router.post("/close/:id", (req, res) => {
-  const orderId = req.params.id;
-  db.run(
-    "UPDATE orders SET status = ? WHERE order_id = ?",
-    ["closed", orderId],
-    (err) => {
-      if (err) return res.status(500).send("Failed to update status.");
-      res.redirect("/admin");
-    }
-  );
-});
-
-// POST route to reopen a closed order
-router.post("/reopen/:id", (req, res) => {
-  const orderId = req.params.id;
-  db.run(
-    "UPDATE orders SET status = ? WHERE order_id = ?",
-    ["open", orderId],
-    (err) => {
-      if (err) return res.status(500).send("Failed to reopen order.");
-      res.redirect("/admin");
-    }
-  );
-});
-
-// POST route to record a payment
+// POST route to record payment
 router.post("/pay/:id", (req, res) => {
   const orderId = req.params.id;
   const paymentAmount = parseFloat(req.body.payment);
@@ -146,7 +54,7 @@ router.post("/pay/:id", (req, res) => {
     return res.status(400).send("Invalid payment amount.");
   }
 
-  // Get current payment amount to add to it
+  // Get current order details
   db.get(
     "SELECT payments FROM orders WHERE order_id = ?",
     [orderId],
@@ -154,14 +62,79 @@ router.post("/pay/:id", (req, res) => {
       if (err) return res.status(500).send("Error retrieving order.");
       if (!order) return res.status(404).send("Order not found.");
 
-      const newPaymentTotal = order.payments + paymentAmount;
+      const newPayments = order.payments + paymentAmount;
 
-      // Allow overpayments - creates customer credit
       db.run(
         "UPDATE orders SET payments = ? WHERE order_id = ?",
-        [newPaymentTotal, orderId],
+        [newPayments, orderId],
         (err) => {
           if (err) return res.status(500).send("Failed to record payment.");
+          res.redirect("/admin");
+        }
+      );
+    }
+  );
+});
+
+// POST route to adjust delivery fee
+router.post("/adjust-delivery/:id", (req, res) => {
+  const orderId = req.params.id;
+  const newDeliveryFee = parseFloat(req.body.delivery_fee);
+
+  if (isNaN(newDeliveryFee) || newDeliveryFee < 0) {
+    return res.status(400).send("Invalid delivery fee amount.");
+  }
+
+  // Get current order details
+  db.get(
+    "SELECT delivery_fee, total_price FROM orders WHERE order_id = ?",
+    [orderId],
+    (err, order) => {
+      if (err) return res.status(500).send("Error retrieving order.");
+      if (!order) return res.status(404).send("Order not found.");
+
+      // Calculate new total: (old total - old delivery fee) + new delivery fee
+      const itemsSubtotal = order.total_price - order.delivery_fee;
+      const newTotalPrice = itemsSubtotal + newDeliveryFee;
+
+      db.run(
+        "UPDATE orders SET delivery_fee = ?, total_price = ? WHERE order_id = ?",
+        [newDeliveryFee, newTotalPrice, orderId],
+        (err) => {
+          if (err)
+            return res.status(500).send("Failed to adjust delivery fee.");
+          res.redirect("/admin");
+        }
+      );
+    }
+  );
+});
+
+// POST route to add discount
+router.post("/add-discount/:id", (req, res) => {
+  const orderId = req.params.id;
+  const discountAmount = parseFloat(req.body.discount);
+
+  if (isNaN(discountAmount) || discountAmount <= 0) {
+    return res.status(400).send("Invalid discount amount.");
+  }
+
+  // Get current order details
+  db.get(
+    "SELECT total_price FROM orders WHERE order_id = ?",
+    [orderId],
+    (err, order) => {
+      if (err) return res.status(500).send("Error retrieving order.");
+      if (!order) return res.status(404).send("Order not found.");
+
+      // Apply discount by reducing total price
+      const newTotalPrice = Math.max(0, order.total_price - discountAmount);
+
+      db.run(
+        "UPDATE orders SET total_price = ? WHERE order_id = ?",
+        [newTotalPrice, orderId],
+        (err) => {
+          if (err) return res.status(500).send("Failed to apply discount.");
           res.redirect("/admin");
         }
       );
