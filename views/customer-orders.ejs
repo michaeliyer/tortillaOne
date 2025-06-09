@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>My Orders - Tortilla One</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 800px;
+        margin: 20px auto;
+        padding: 20px;
+        background-color: #f9f9f9;
+      }
+      h1 {
+        color: #333;
+        text-align: center;
+        margin-bottom: 30px;
+      }
+      .customer-info {
+        background-color: white;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 30px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        text-align: center;
+        color: #666;
+      }
+      .order {
+        background-color: white;
+        margin-bottom: 25px;
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        border-left: 5px solid #4caf50;
+      }
+      .order.latest {
+        border-left-color: #2196f3;
+        background-color: #f8fbff;
+      }
+      .order-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+      }
+      .order-title {
+        font-size: 18px;
+        font-weight: bold;
+        color: #333;
+      }
+      .order-date {
+        color: #666;
+        font-size: 14px;
+      }
+      .status {
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 12px;
+        font-weight: bold;
+        text-transform: uppercase;
+      }
+      .status.open {
+        background-color: #fff3cd;
+        color: #856404;
+      }
+      .status.closed {
+        background-color: #d4edda;
+        color: #155724;
+      }
+      .order-summary {
+        background-color: #f8f9fa;
+        padding: 15px;
+        border-radius: 5px;
+        margin-bottom: 15px;
+      }
+      .order-summary h4 {
+        margin: 0 0 10px 0;
+        color: #333;
+      }
+      .items-list {
+        margin-bottom: 15px;
+      }
+      .item {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 0;
+        border-bottom: 1px solid #eee;
+      }
+      .item:last-child {
+        border-bottom: none;
+      }
+      .item-name {
+        font-weight: 500;
+      }
+      .item-details {
+        color: #666;
+        font-size: 14px;
+      }
+      .pricing {
+        background-color: #f1f3f4;
+        padding: 15px;
+        border-radius: 5px;
+      }
+      .pricing-row {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 8px;
+      }
+      .pricing-row.total {
+        font-weight: bold;
+        font-size: 16px;
+        border-top: 1px solid #ddd;
+        padding-top: 8px;
+        margin-top: 10px;
+      }
+      .balance {
+        margin-top: 10px;
+        padding: 10px;
+        border-radius: 5px;
+        font-weight: bold;
+      }
+      .balance.paid {
+        background-color: #d4edda;
+        color: #155724;
+      }
+      .balance.partial {
+        background-color: #fff3cd;
+        color: #856404;
+      }
+      .balance.unpaid {
+        background-color: #f8d7da;
+        color: #721c24;
+      }
+      .balance.credit {
+        background-color: #cce7ff;
+        color: #004085;
+      }
+      .links {
+        text-align: center;
+        margin-top: 30px;
+      }
+      .links a {
+        color: #4caf50;
+        text-decoration: none;
+        margin: 0 15px;
+        padding: 10px 20px;
+        border: 1px solid #4caf50;
+        border-radius: 5px;
+        display: inline-block;
+      }
+      .links a:hover {
+        background-color: #4caf50;
+        color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>My Orders</h1>
+
+    <div class="customer-info">
+      <strong>Orders found for:</strong> <%= customerEmail %>
+    </div>
+
+    <% orders.forEach((order, index) => { %>
+    <div class="order <%= index === 0 ? 'latest' : '' %>">
+      <div class="order-header">
+        <div>
+          <div class="order-title">
+            Order #<%= order.order_id %> <% if (index === 0) { %><span
+              style="color: #2196f3"
+              >(Latest)</span
+            ><% } %>
+          </div>
+          <div class="order-date">
+            Order for <%= new Date(order.order_date).toLocaleDateString('en-US',
+            { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })
+            %>
+          </div>
+        </div>
+        <span class="status <%= order.status %>"><%= order.status %></span>
+      </div>
+
+      <div class="order-summary">
+        <h4>Items Ordered:</h4>
+        <div class="items-list">
+          <% order.items.forEach(item => { %>
+          <div class="item">
+            <div>
+              <div class="item-name">
+                <%= item.quantity %> × <%= item.color %> <%= item.variant %>
+              </div>
+              <div class="item-details">$<%= item.price.toFixed(2) %> each</div>
+            </div>
+            <div><strong>$<%= item.subtotal.toFixed(2) %></strong></div>
+          </div>
+          <% }) %>
+        </div>
+      </div>
+
+      <div class="pricing">
+        <div class="pricing-row">
+          <span>Items Subtotal:</span>
+          <span
+            >$<%= (order.total_price - order.delivery_fee).toFixed(2) %></span
+          >
+        </div>
+        <div class="pricing-row">
+          <span>Delivery Fee:</span>
+          <span
+            >$<%= order.delivery_fee.toFixed(2) %>
+            <small style="color: #666; font-style: italic">
+              (<%= getDeliveryRateInfo(order.total_price -
+              order.delivery_fee).rate %>)
+            </small>
+          </span>
+        </div>
+        <div class="pricing-row total">
+          <span>Order Total:</span>
+          <span>$<%= order.total_price.toFixed(2) %></span>
+        </div>
+
+        <% if (order.payments > 0) { %>
+        <div class="pricing-row">
+          <span>Payments Made:</span>
+          <span>$<%= order.payments.toFixed(2) %></span>
+        </div>
+        <% } %>
+      </div>
+
+      <% if (order.balance < 0) { %>
+      <div class="balance credit">
+        ✓ Credit Balance: $<%= Math.abs(order.balance).toFixed(2) %>
+      </div>
+      <% } else if (order.balance === 0) { %>
+      <div class="balance paid">✓ Fully Paid</div>
+      <% } else if (order.payments > 0) { %>
+      <div class="balance partial">
+        ⚠ Partial Payment - Balance Due: $<%= order.balance.toFixed(2) %>
+      </div>
+      <% } else { %>
+      <div class="balance unpaid">
+        💳 Balance Due: $<%= order.balance.toFixed(2) %>
+      </div>
+      <% } %>
+    </div>
+    <% }) %>
+
+    <div class="links">
+      <a href="/my-orders">← Look Up Different Email</a>
+      <a href="/">Place New Order</a>
+    </div>
+  </body>
+</html>

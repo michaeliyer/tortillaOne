@@ -1,0 +1,154 @@
+<h1>Admin Dashboard</h1>
+
+<% orders.forEach(order => { %>
+<div
+  style="margin-bottom: 1rem; padding: 1rem; border: 1px solid #ccc; background-color: <%= order.status === 'closed' ? '#f0f8f0' : '#fff' %>;"
+>
+  <strong>Order ID:</strong> <%= order.order_id %><br />
+  <strong>Date:</strong> <%= order.order_date %><br />
+  <strong>Customer:</strong> <%= order.name %><br />
+  <strong>Address:</strong> <%= order.address %><br />
+  <strong>Phone:</strong> <%= order.phone %><br />
+  <strong>Email:</strong> <%= order.email %><br />
+
+  <!-- Billing Progression Section -->
+  <div
+    style="
+      background-color: #f8f9fa;
+      padding: 10px;
+      margin: 10px 0;
+      border-radius: 5px;
+      border-left: 4px solid #007bff;
+    "
+  >
+    <% if (order.previous_balance > 0) { %>
+    <strong>Previous Balance Due:</strong>
+    <span style="color: #dc3545; font-weight: bold"
+      >$<%= order.previous_balance.toFixed(2) %></span
+    ><br />
+    <% } %>
+
+    <strong>Items Subtotal:</strong> $<%= (order.total_price -
+    order.delivery_fee).toFixed(2) %><br />
+    <strong>Delivery Fee:</strong> $<%= order.delivery_fee.toFixed(2) %>
+    <em style="color: #666; font-size: 0.9em">
+      (<%= getDeliveryRateInfo(order.total_price - order.delivery_fee).rate %>) </em
+    ><br />
+    <strong>Current Order Total:</strong> $<%= order.total_price.toFixed(2)
+    %><br />
+
+    <% if (order.payments > 0) { %>
+    <strong>Payments Made:</strong>
+    <span style="color: #28a745; font-weight: bold"
+      >-$<%= order.payments.toFixed(2) %></span
+    ><br />
+    <% } %> <% const totalDue = (order.previous_balance || 0) +
+    order.total_price - order.payments; %>
+    <hr style="margin: 8px 0; border: 1px solid #dee2e6" />
+    <strong style="font-size: 1.1em">Total Balance Due:</strong>
+    <span
+      style="color: <%= totalDue <= 0 ? '#28a745' : '#dc3545' %>; font-weight: bold; font-size: 1.1em;"
+    >
+      $<%= totalDue.toFixed(2) %>
+    </span>
+  </div>
+
+  <% if (order.balance < 0) { %>
+  <strong>Order Credit:</strong>
+  <span style="color: blue; font-weight: bold"
+    >$<%= Math.abs(order.balance).toFixed(2) %></span
+  ><br />
+  <% } %>
+
+  <strong>Status:</strong>
+  <span
+    style="color: <%= order.status === 'closed' ? 'green' : 'orange' %>; font-weight: bold;"
+    ><%= order.status %></span
+  >
+
+  <% if (order.status === 'open') { %>
+  <form
+    method="POST"
+    action="/admin/close/<%= order.order_id %>"
+    style="display: inline; margin-left: 10px"
+  >
+    <button
+      type="submit"
+      style="
+        background-color: #4caf50;
+        color: white;
+        padding: 5px 10px;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+      "
+    >
+      Mark as Delivered
+    </button>
+  </form>
+  <% } else if (order.status === 'closed') { %>
+  <form
+    method="POST"
+    action="/admin/reopen/<%= order.order_id %>"
+    style="display: inline; margin-left: 10px"
+  >
+    <button
+      type="submit"
+      style="
+        background-color: #ff9800;
+        color: white;
+        padding: 5px 10px;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+      "
+    >
+      Return to Open
+    </button>
+  </form>
+  <% } %>
+
+  <!-- Allow payments regardless of balance - can create credits -->
+  <form
+    method="POST"
+    action="/admin/pay/<%= order.order_id %>"
+    style="display: inline; margin-left: 10px"
+  >
+    <input
+      type="number"
+      name="payment"
+      placeholder="Payment amount"
+      step="0.01"
+      min="0.01"
+      style="width: 120px; padding: 5px; margin-right: 5px"
+      required
+    />
+    <button
+      type="submit"
+      style="
+        background-color: #2196f3;
+        color: white;
+        padding: 5px 10px;
+        border: none;
+        border-radius: 3px;
+        cursor: pointer;
+      "
+    >
+      Record Payment
+    </button>
+  </form>
+
+  <% if (order.items.length > 0) { %>
+  <ul>
+    <% order.items.forEach(item => { %>
+    <li>
+      <%= item.color %> - <%= item.variant %>: <%= item.quantity %> × ($<%=
+      item.subtotal.toFixed(2) %>)
+    </li>
+    <% }) %>
+  </ul>
+  <% } else { %>
+  <p><em>No items found for this order.</em></p>
+  <% } %>
+</div>
+<% }) %>
