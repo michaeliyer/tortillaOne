@@ -288,19 +288,20 @@
         </p>
         <p>
           <strong>Delivery Fee:</strong> $<%= order.delivery_fee.toFixed(2) %>
+          <em>(<%= getDeliveryRateInfo(order.itemsSubtotal).rate %>)</em>
           <% if (Math.abs(order.delivery_fee - order.standardDeliveryFee) >
           0.01) { %>
-          <em style="color: #ff6b35"
-            >(Standard: $<%= order.standardDeliveryFee.toFixed(2) %>)</em
-          >
+          <em style="color: #ff6b35">
+            (Standard: $<%= order.standardDeliveryFee.toFixed(2) %>)
+          </em>
           <% } %>
         </p>
         <p>
           <strong>Total Price:</strong> $<%= order.total_price.toFixed(2) %> <%
           if (order.total_price < order.standardTotal - 0.01) { %>
-          <em style="color: #ff6b35"
-            >(Standard: $<%= order.standardTotal.toFixed(2) %>)</em
-          >
+          <em style="color: #ff6b35">
+            (Standard: $<%= order.standardTotal.toFixed(2) %>)
+          </em>
           <% } %>
         </p>
         <p><strong>Payments Made:</strong> $<%= order.payments.toFixed(2) %></p>

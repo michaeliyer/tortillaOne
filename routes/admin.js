@@ -2,6 +2,26 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db/connection");
 
+// Helper function to determine delivery rate based on order value
+function getDeliveryRateInfo(itemsSubtotal) {
+  if (itemsSubtotal < 50) {
+    return {
+      rate: "$10.00 flat rate",
+      rateText: "($10 flat rate for orders under $50)",
+    };
+  } else if (itemsSubtotal <= 75) {
+    return { rate: "15%", rateText: "(15% for orders $51-75)" };
+  } else if (itemsSubtotal <= 100) {
+    return { rate: "12%", rateText: "(12% for orders $76-100)" };
+  } else if (itemsSubtotal <= 150) {
+    return { rate: "10%", rateText: "(10% for orders $101-150)" };
+  } else if (itemsSubtotal <= 250) {
+    return { rate: "8%", rateText: "(8% for orders $151-250)" };
+  } else {
+    return { rate: "6%", rateText: "(6% for orders over $251)" };
+  }
+}
+
 // Helper function to calculate standard delivery fee
 function calculateStandardDeliveryFee(itemsSubtotal) {
   if (itemsSubtotal < 50) {
@@ -123,6 +143,7 @@ router.get("/", (req, res) => {
       res.render("admin", {
         orders,
         customerSummary,
+        getDeliveryRateInfo,
       });
     });
   });
