@@ -88,13 +88,17 @@ router.post("/", (req, res) => {
       const grandTotal = totalCost + deliveryFee;
 
       // Step 5: Check for existing customer and their credit balance
-      // First, try to find existing customer by email
+      // First, try to find existing customer by email (case-insensitive)
       db.get(
-        "SELECT customer_id FROM customers WHERE email = ? LIMIT 1",
+        "SELECT customer_id FROM customers WHERE LOWER(email) = LOWER(?) LIMIT 1",
         [email],
         (err, existingCustomer) => {
           if (err) return res.status(500).send("Error checking customer.");
 
+          console.log(
+            `Customer lookup for email '${email}':`,
+            existingCustomer
+          );
           let customerId = null;
           let customerCredit = 0;
 
@@ -128,29 +132,48 @@ router.post("/", (req, res) => {
                   const remainingBalance = grandTotal - initialPayment;
                   const rateInfo = getDeliveryRateInfo(totalCost);
 
-                  let message = `<h2>Thank you for your order!</h2>`;
-                  message += `<p>Items Subtotal: $${totalCost.toFixed(2)}</p>`;
-                  message += `<p>Delivery Fee: $${deliveryFee.toFixed(2)} <em>${
-                    rateInfo.rateText
-                  }</em></p>`;
-                  message += `<p><strong>Order Total: $${grandTotal.toFixed(
-                    2
-                  )}</strong></p>`;
+                  // Calculate total amount owed across ALL orders for this customer
+                  db.get(
+                    `SELECT SUM(balance) as total_owed FROM orders o 
+                     JOIN customers c ON o.customer_id = c.customer_id 
+                     WHERE LOWER(c.email) = LOWER(?)`,
+                    [email],
+                    (err, balanceResult) => {
+                      const totalOwed = balanceResult
+                        ? balanceResult.total_owed
+                        : remainingBalance;
 
-                  if (initialPayment > 0) {
-                    message += `<p>Credit Applied: $${initialPayment.toFixed(
-                      2
-                    )}</p>`;
-                    message += `<p><strong>Balance Due: $${remainingBalance.toFixed(
-                      2
-                    )}</strong></p>`;
-                  } else {
-                    message += `<p><strong>Balance Due: $${remainingBalance.toFixed(
-                      2
-                    )}</strong></p>`;
-                  }
+                      let message = `<h2>Thank you for your order!</h2>`;
+                      message += `<p>Items Subtotal: $${totalCost.toFixed(
+                        2
+                      )}</p>`;
+                      message += `<p>Delivery Fee: $${deliveryFee.toFixed(
+                        2
+                      )} <em>${rateInfo.rateText}</em></p>`;
+                      message += `<p><strong>This Order Total: $${grandTotal.toFixed(
+                        2
+                      )}</strong></p>`;
 
-                  res.send(message);
+                      if (initialPayment > 0) {
+                        message += `<p>Credit Applied: $${initialPayment.toFixed(
+                          2
+                        )}</p>`;
+                      }
+
+                      // Show total amount owed across all orders
+                      if (totalOwed > remainingBalance) {
+                        message += `<p><em>Previous Balance: $${(
+                          totalOwed - remainingBalance
+                        ).toFixed(2)}</em></p>`;
+                      }
+
+                      message += `<p><strong>Total Balance Due: $${totalOwed.toFixed(
+                        2
+                      )}</strong></p>`;
+
+                      res.send(message);
+                    }
+                  );
                 });
               }
             );
@@ -160,16 +183,20 @@ router.post("/", (req, res) => {
             // Customer exists - calculate their total credit balance
             customerId = existingCustomer.customer_id;
 
+            // Get credit from ALL orders for this email address (across all customer_ids)
             db.get(
               `SELECT SUM(CASE WHEN balance < 0 THEN balance ELSE 0 END) as total_credit 
-             FROM orders WHERE customer_id = ?`,
-              [customerId],
+               FROM orders o 
+               JOIN customers c ON o.customer_id = c.customer_id 
+               WHERE LOWER(c.email) = LOWER(?)`,
+              [email],
               (err, result) => {
                 if (err)
                   return res
                     .status(500)
                     .send("Error calculating customer credit.");
 
+                console.log(`Credit query result for email ${email}:`, result);
                 customerCredit = Math.abs(result.total_credit || 0);
                 console.log(
                   `Existing customer ${email} has $${customerCredit.toFixed(
@@ -314,9 +341,16 @@ router.post("/my-orders", (req, res) => {
         if (name) searchInfo.push(`name: ${name}`);
         if (phone) searchInfo.push(`phone: ${phone}`);
 
+        // Calculate total balance across all orders
+        const totalBalance = ordersWithItems.reduce(
+          (sum, order) => sum + order.balance,
+          0
+        );
+
         res.render("customer-orders", {
           orders: ordersWithItems,
           customerEmail: searchInfo.join(", "),
+          totalBalance: totalBalance,
           getDeliveryRateInfo: getDeliveryRateInfo,
         });
       })

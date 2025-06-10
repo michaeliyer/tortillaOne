@@ -52,6 +52,41 @@ app.use("/admin", adminRoutes); // admin dashboard
 // Customer order lookup routes
 app.use("/", customerRoutes); // This will handle /my-orders routes
 
+// API endpoint to check customer balance
+app.post("/api/check-balance", (req, res) => {
+  const { email } = req.body;
+
+  if (!email) {
+    return res.status(400).json({ error: "Email is required" });
+  }
+
+  // Query to get total balance across all orders for this email
+  const query = `
+    SELECT 
+      SUM(o.balance) as totalBalance,
+      COUNT(o.order_id) as orderCount
+    FROM orders o
+    JOIN customers c ON o.customer_id = c.customer_id
+    WHERE LOWER(c.email) = LOWER(?)
+  `;
+
+  db.get(query, [email], (err, result) => {
+    if (err) {
+      console.error("Balance check error:", err);
+      return res.status(500).json({ error: "Database error" });
+    }
+
+    const totalBalance = result.totalBalance || 0;
+    const orderCount = result.orderCount || 0;
+
+    res.json({
+      totalBalance: totalBalance,
+      orderCount: orderCount,
+      hasOrders: orderCount > 0,
+    });
+  });
+});
+
 // Root route → render the customer order form
 app.get("/", (req, res) => {
   db.all("SELECT * FROM products", (err, rows) => {

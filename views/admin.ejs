@@ -173,9 +173,57 @@
   <body>
     <h1>Admin Dashboard</h1>
 
-    <% if (orders.length === 0) { %>
+    <!-- Customer Balance Summary -->
+    <% if (customerSummary && customerSummary.length > 0) { %>
+    <div
+      style="
+        background: #fff3cd;
+        border: 2px solid #ffc107;
+        padding: 20px;
+        margin: 20px 0;
+        border-radius: 8px;
+      "
+    >
+      <h2 style="margin: 0 0 15px 0; color: #856404">
+        ⚠ Outstanding Customer Balances
+      </h2>
+      <div style="display: grid; gap: 10px">
+        <% customerSummary.forEach(customer => { %>
+        <div
+          style="
+            background: white;
+            padding: 15px;
+            border-radius: 4px;
+            border-left: 4px solid #dc3545;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          "
+        >
+          <div>
+            <strong><%= customer.name %></strong> (<%= customer.email %>)
+            <br />
+            <small style="color: #666"
+              ><%= customer.orderCount %> order<%= customer.orderCount > 1 ? 's'
+              : '' %></small
+            >
+          </div>
+          <div style="text-align: right">
+            <div style="font-size: 18px; font-weight: bold; color: #dc3545">
+              $<%= customer.totalBalance.toFixed(2) %>
+            </div>
+            <small style="color: #666">total owed</small>
+          </div>
+        </div>
+        <% }); %>
+      </div>
+    </div>
+    <% } %> <% if (orders.length === 0) { %>
     <p>No orders found.</p>
-    <% } else { %> <% orders.forEach(order => { %>
+    <% } else { %>
+
+    <h2>All Orders</h2>
+    <% orders.forEach(order => { %>
     <div class="order-card <%= order.hasSpecialRate ? 'special-rate' : '' %>">
       <!-- Order Header -->
       <div class="order-header">

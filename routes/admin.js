@@ -98,7 +98,32 @@ router.get("/", (req, res) => {
         order.standardTotal = standardTotal;
       });
 
-      res.render("admin", { orders });
+      // Calculate customer totals for summary
+      const customerTotals = {};
+      orders.forEach((order) => {
+        const customerKey = `${order.customer_id}-${order.email}`;
+        if (!customerTotals[customerKey]) {
+          customerTotals[customerKey] = {
+            customer_id: order.customer_id,
+            email: order.email,
+            name: order.name,
+            totalBalance: 0,
+            orderCount: 0,
+          };
+        }
+        customerTotals[customerKey].totalBalance += order.balance;
+        customerTotals[customerKey].orderCount += 1;
+      });
+
+      // Convert to array and filter customers with outstanding balances
+      const customerSummary = Object.values(customerTotals)
+        .filter((customer) => customer.totalBalance > 0)
+        .sort((a, b) => b.totalBalance - a.totalBalance);
+
+      res.render("admin", {
+        orders,
+        customerSummary,
+      });
     });
   });
 });
