@@ -2,48 +2,37 @@ const express = require("express");
 const router = express.Router();
 const db = require("../db/connection");
 
-// Helper function to determine delivery rate based on order value
+// Function to get delivery rate info for display
 function getDeliveryRateInfo(itemsSubtotal) {
   if (itemsSubtotal < 50) {
-    return {
-      rate: "$10.00 flat rate",
-      rateText: "($10 flat rate for orders under $50)",
-    };
-  } else if (itemsSubtotal <= 75) {
-    return { rate: "15%", rateText: "(15% for orders $51-75)" };
-  } else if (itemsSubtotal <= 100) {
-    return { rate: "12%", rateText: "(12% for orders $76-100)" };
-  } else if (itemsSubtotal <= 150) {
-    return { rate: "10%", rateText: "(10% for orders $101-150)" };
-  } else if (itemsSubtotal <= 250) {
-    return { rate: "8%", rateText: "(8% for orders $151-250)" };
+    return { rate: "$10.00 flat rate", percentage: null };
+  } else if (itemsSubtotal >= 50 && itemsSubtotal < 100) {
+    return { rate: "18% of items subtotal", percentage: 18 };
+  } else if (itemsSubtotal >= 100 && itemsSubtotal < 150) {
+    return { rate: "16% of items subtotal", percentage: 16 };
+  } else if (itemsSubtotal >= 150 && itemsSubtotal < 200) {
+    return { rate: "14% of items subtotal", percentage: 14 };
   } else {
-    return { rate: "6%", rateText: "(6% for orders over $251)" };
+    return { rate: "12% of items subtotal", percentage: 12 };
   }
 }
 
-// Helper function to calculate standard delivery fee
+// Function to calculate standard delivery fee
 function calculateStandardDeliveryFee(itemsSubtotal) {
   if (itemsSubtotal < 50) {
-    return 10.0; // $10 flat rate for orders under $50
-  } else if (itemsSubtotal <= 75) {
-    return itemsSubtotal * 0.15; // 15% for orders $51-75
-  } else if (itemsSubtotal <= 100) {
-    return itemsSubtotal * 0.12; // 12% for orders $76-100
-  } else if (itemsSubtotal <= 150) {
-    return itemsSubtotal * 0.1; // 10% for orders $101-150
-  } else if (itemsSubtotal <= 250) {
-    return itemsSubtotal * 0.08; // 8% for orders $151-250
+    return 10; // Flat rate for orders under $50
   } else {
-    return itemsSubtotal * 0.06; // 6% for orders over $251
+    const info = getDeliveryRateInfo(itemsSubtotal);
+    return (itemsSubtotal * info.percentage) / 100;
   }
 }
 
-// Show all recent orders with customer info
+// GET /admin route
 router.get("/", (req, res) => {
   const orderSql = `
-    SELECT o.order_id, o.order_date, o.total_price, o.delivery_fee, o.payments, o.balance, o.status,
-           c.customer_id, c.name, c.address, c.phone, c.email
+    SELECT 
+      o.order_id, o.customer_id, o.total_price, o.delivery_fee, o.payments, o.status, o.order_date, o.balance,
+      c.name, c.phone, c.email, c.address
     FROM orders o
     JOIN customers c ON o.customer_id = c.customer_id
     ORDER BY o.order_date DESC
@@ -93,7 +82,7 @@ router.get("/", (req, res) => {
         );
       });
 
-      // Attach items to their matching order and detect special rates
+      // Attach items to their matching order and calculate previous balances
       orders.forEach((order) => {
         order.items = items.filter((i) => i.order_id === order.order_id);
 
@@ -103,12 +92,16 @@ router.get("/", (req, res) => {
           0
         );
 
-        // Calculate previous balance for this order (sum of all previous orders' balances)
+        // Calculate previous balance for this order (sum of all previous orders' balances for this customer)
         const customerOrders = ordersByEmail[order.email];
         const orderIndex = customerOrders.findIndex(
           (o) => o.order_id === order.order_id
         );
+
+        // Get all previous orders for this customer
         const previousOrders = customerOrders.slice(0, orderIndex);
+
+        // Sum up the balances of all previous orders
         order.previousBalance = previousOrders.reduce((sum, prevOrder) => {
           return sum + prevOrder.balance;
         }, 0);
@@ -149,7 +142,7 @@ router.get("/", (req, res) => {
         order.standardTotal = standardTotal;
       });
 
-      // Calculate customer totals for summary
+      // Calculate customer totals for summary (sum all balances per customer)
       const customerTotals = {};
       orders.forEach((order) => {
         const customerKey = `${order.customer_id}-${order.email}`;
@@ -158,10 +151,12 @@ router.get("/", (req, res) => {
             customer_id: order.customer_id,
             email: order.email,
             name: order.name,
+            phone: order.phone,
             totalBalance: 0,
             orderCount: 0,
           };
         }
+        // Sum all individual order balances for this customer
         customerTotals[customerKey].totalBalance += order.balance;
         customerTotals[customerKey].orderCount += 1;
       });
