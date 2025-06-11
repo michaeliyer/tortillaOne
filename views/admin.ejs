@@ -282,13 +282,17 @@
       <!-- Order Summary -->
       <div class="order-summary">
         <h4>Order Summary</h4>
+
         <p>
           <strong>Items Subtotal:</strong> $<%= order.itemsSubtotal.toFixed(2)
           %>
         </p>
         <p>
           <strong>Delivery Fee:</strong> $<%= order.delivery_fee.toFixed(2) %>
-          <em>(<%= getDeliveryRateInfo(order.itemsSubtotal).rate %>)</em>
+          <em
+            >(<%= order.delivery_fee == 10 ? '$10.00 flat rate' :
+            getDeliveryRateInfo(order.itemsSubtotal).rate %>)</em
+          >
           <% if (Math.abs(order.delivery_fee - order.standardDeliveryFee) >
           0.01) { %>
           <em style="color: #ff6b35">
@@ -297,22 +301,56 @@
           <% } %>
         </p>
         <p>
-          <strong>Total Price:</strong> $<%= order.total_price.toFixed(2) %> <%
-          if (order.total_price < order.standardTotal - 0.01) { %>
+          <strong>Order Subtotal:</strong> $<%= order.total_price.toFixed(2) %>
+          <% if (order.total_price < order.standardTotal - 0.01) { %>
           <em style="color: #ff6b35">
             (Standard: $<%= order.standardTotal.toFixed(2) %>)
           </em>
           <% } %>
         </p>
-        <p><strong>Payments Made:</strong> $<%= order.payments.toFixed(2) %></p>
+
+        <% if (order.previousBalance !== 0) { %> <% if (order.previousBalance >
+        0) { %>
         <p>
-          <strong>Balance Due:</strong>
-          <span
-            class="<%= order.balance <= 0 ? 'balance-positive' : 'balance-negative' %>"
+          <strong>Previous Balance:</strong>
+          <span style="color: #dc3545"
+            >$<%= order.previousBalance.toFixed(2) %></span
           >
-            $<%= order.balance.toFixed(2) %>
-          </span>
         </p>
+        <% } else { %>
+        <p>
+          <strong>Previous Balance:</strong>
+          <span style="color: #28a745"
+            >-$<%= Math.abs(order.previousBalance).toFixed(2) %></span
+          >
+          <em style="color: #28a745">(Credit)</em>
+        </p>
+        <% } %> <% } %> <% if (order.payments > 0) { %>
+        <p>
+          <strong>Payments Made:</strong>
+          <span style="color: #28a745">-$<%= order.payments.toFixed(2) %></span>
+        </p>
+        <% } %>
+
+        <hr style="margin: 10px 0; border: 1px solid #ddd" />
+
+        <% const currentBalance = order.total_price - order.payments +
+        order.previousBalance; %> <% const isCredit = currentBalance < 0; %> <%
+        const balanceDisplayValue = Math.abs(currentBalance); %>
+        <p style="font-size: 16px">
+          <strong
+            ><%= isCredit ? 'Current Credit:' : 'Current Balance:' %></strong
+          >
+          <span
+            style="color: <%= isCredit ? '#007bff' : '#dc3545' %>; font-weight: bold;"
+          >
+            <% if (isCredit) { %>-<% } %>$<%= balanceDisplayValue.toFixed(2) %>
+          </span>
+          <% if (isCredit) { %>
+          <em style="color: #007bff">(Credit)</em>
+          <% } %>
+        </p>
+
         <p><strong>Status:</strong> <%= order.status %></p>
       </div>
 

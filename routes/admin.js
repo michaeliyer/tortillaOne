@@ -56,7 +56,12 @@ router.get("/", (req, res) => {
     }
 
     const orderIds = orders.map((o) => o.order_id);
-    if (orderIds.length === 0) return res.render("admin", { orders: [] });
+    if (orderIds.length === 0)
+      return res.render("admin", {
+        orders: [],
+        customerSummary: [],
+        getDeliveryRateInfo,
+      });
 
     const placeholders = orderIds.map(() => "?").join(",");
     const itemSql = `
@@ -72,6 +77,22 @@ router.get("/", (req, res) => {
         return res.status(500).send("Error retrieving items.");
       }
 
+      // Group orders by customer email to calculate previous balances
+      const ordersByEmail = {};
+      orders.forEach((order) => {
+        if (!ordersByEmail[order.email]) {
+          ordersByEmail[order.email] = [];
+        }
+        ordersByEmail[order.email].push(order);
+      });
+
+      // Sort orders by date for each customer to calculate previous balances
+      Object.keys(ordersByEmail).forEach((email) => {
+        ordersByEmail[email].sort(
+          (a, b) => new Date(a.order_date) - new Date(b.order_date)
+        );
+      });
+
       // Attach items to their matching order and detect special rates
       orders.forEach((order) => {
         order.items = items.filter((i) => i.order_id === order.order_id);
@@ -81,6 +102,16 @@ router.get("/", (req, res) => {
           (sum, item) => sum + item.subtotal,
           0
         );
+
+        // Calculate previous balance for this order (sum of all previous orders' balances)
+        const customerOrders = ordersByEmail[order.email];
+        const orderIndex = customerOrders.findIndex(
+          (o) => o.order_id === order.order_id
+        );
+        const previousOrders = customerOrders.slice(0, orderIndex);
+        order.previousBalance = previousOrders.reduce((sum, prevOrder) => {
+          return sum + prevOrder.balance;
+        }, 0);
 
         // Calculate what the standard delivery fee should be
         const standardDeliveryFee = calculateStandardDeliveryFee(itemsSubtotal);
@@ -135,14 +166,14 @@ router.get("/", (req, res) => {
         customerTotals[customerKey].orderCount += 1;
       });
 
-      // Convert to array and filter customers with outstanding balances
+      // Convert to array and filter customers with outstanding balances (positive only)
       const customerSummary = Object.values(customerTotals)
         .filter((customer) => customer.totalBalance > 0)
         .sort((a, b) => b.totalBalance - a.totalBalance);
 
       res.render("admin", {
         orders,
-        customerSummary,
+        customerSummary: customerSummary || [],
         getDeliveryRateInfo,
       });
     });

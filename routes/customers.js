@@ -102,19 +102,24 @@ router.post("/", (req, res) => {
           let customerId = null;
           let customerCredit = 0;
 
-          const processOrder = (custId, creditToApply = 0) => {
-            // Calculate payments to apply (credit from previous orders)
-            const initialPayment = Math.min(creditToApply, grandTotal);
+          const processOrder = (custId, previousNetBalance = 0) => {
+            // 1. Calculate current order total (items + delivery)
+            const currentOrderTotal = grandTotal;
 
-            // Step 6: Insert into orders with credit applied
+            // 2. Store the order with no initial payments (balance will be calculated automatically by SQL)
+            // The balance column will be: total_price - payments (which starts at 0)
+            // Previous balance handling will be done in the admin view calculation
             db.run(
-              `INSERT INTO orders (customer_id, delivery_fee, total_price, payments) VALUES (?, ?, ?, ?)`,
-              [custId, deliveryFee, grandTotal, initialPayment],
+              `INSERT INTO orders (customer_id, delivery_fee, total_price, payments) VALUES (?, ?, ?, 0)`,
+              [custId, deliveryFee, currentOrderTotal],
               function (err) {
-                if (err) return res.status(500).send("Error creating order.");
+                if (err) {
+                  console.error("Database error creating order:", err);
+                  return res.status(500).send("Error creating order.");
+                }
                 const orderId = this.lastID;
 
-                // Step 7: Insert all order_items
+                // Step 4: Insert all order_items
                 const stmt = db.prepare(
                   `INSERT INTO order_items (order_id, product_id, quantity, subtotal) VALUES (?, ?, ?, ?)`
                 );
@@ -129,51 +134,37 @@ router.post("/", (req, res) => {
                 });
 
                 stmt.finalize(() => {
-                  const remainingBalance = grandTotal - initialPayment;
                   const rateInfo = getDeliveryRateInfo(totalCost);
 
-                  // Calculate total amount owed across ALL orders for this customer
-                  db.get(
-                    `SELECT SUM(balance) as total_owed FROM orders o 
-                     JOIN customers c ON o.customer_id = c.customer_id 
-                     WHERE LOWER(c.email) = LOWER(?)`,
-                    [email],
-                    (err, balanceResult) => {
-                      const totalOwed = balanceResult
-                        ? balanceResult.total_owed
-                        : remainingBalance;
+                  // Calculate the total balance including previous balance
+                  const totalBalance = currentOrderTotal + previousNetBalance;
 
-                      let message = `<h2>Thank you for your order!</h2>`;
-                      message += `<p>Items Subtotal: $${totalCost.toFixed(
+                  let message = `<h2>Thank you for your order!</h2>`;
+                  message += `<p>Items Subtotal: $${totalCost.toFixed(2)}</p>`;
+                  message += `<p>Delivery Fee: $${deliveryFee.toFixed(2)} <em>${
+                    rateInfo.rateText
+                  }</em></p>`;
+                  message += `<p><strong>Order Subtotal: $${currentOrderTotal.toFixed(
+                    2
+                  )}</strong></p>`;
+
+                  if (previousNetBalance !== 0) {
+                    if (previousNetBalance < 0) {
+                      message += `<p>Previous Balance: -$${Math.abs(
+                        previousNetBalance
+                      ).toFixed(2)} <em>(Credit)</em></p>`;
+                    } else {
+                      message += `<p>Previous Balance: $${previousNetBalance.toFixed(
                         2
                       )}</p>`;
-                      message += `<p>Delivery Fee: $${deliveryFee.toFixed(
-                        2
-                      )} <em>${rateInfo.rateText}</em></p>`;
-                      message += `<p><strong>This Order Total: $${grandTotal.toFixed(
-                        2
-                      )}</strong></p>`;
-
-                      if (initialPayment > 0) {
-                        message += `<p>Credit Applied: $${initialPayment.toFixed(
-                          2
-                        )}</p>`;
-                      }
-
-                      // Show total amount owed across all orders
-                      if (totalOwed > remainingBalance) {
-                        message += `<p><em>Previous Balance: $${(
-                          totalOwed - remainingBalance
-                        ).toFixed(2)}</em></p>`;
-                      }
-
-                      message += `<p><strong>Total Balance Due: $${totalOwed.toFixed(
-                        2
-                      )}</strong></p>`;
-
-                      res.send(message);
                     }
-                  );
+                  }
+
+                  message += `<p><strong>Current Balance: $${totalBalance.toFixed(
+                    2
+                  )}</strong></p>`;
+                  message += `<p><strong>Status:</strong> open</p>`;
+                  res.send(message);
                 });
               }
             );
@@ -183,9 +174,9 @@ router.post("/", (req, res) => {
             // Customer exists - calculate their total credit balance
             customerId = existingCustomer.customer_id;
 
-            // Get credit from ALL orders for this email address (across all customer_ids)
+            // Get net balance from ALL orders for this email address
             db.get(
-              `SELECT SUM(CASE WHEN balance < 0 THEN balance ELSE 0 END) as total_credit 
+              `SELECT SUM(balance) as net_balance 
                FROM orders o 
                JOIN customers c ON o.customer_id = c.customer_id 
                WHERE LOWER(c.email) = LOWER(?)`,
@@ -194,17 +185,19 @@ router.post("/", (req, res) => {
                 if (err)
                   return res
                     .status(500)
-                    .send("Error calculating customer credit.");
+                    .send("Error calculating customer balance.");
 
-                console.log(`Credit query result for email ${email}:`, result);
-                customerCredit = Math.abs(result.total_credit || 0);
+                console.log(`Balance query result for email ${email}:`, result);
+                const netBalance = result.net_balance || 0;
                 console.log(
-                  `Existing customer ${email} has $${customerCredit.toFixed(
-                    2
-                  )} in credits`
+                  `Existing customer ${email} has $${Math.abs(
+                    netBalance
+                  ).toFixed(2)} in ${
+                    netBalance < 0 ? "available credits" : "balance due"
+                  } (net balance: $${netBalance.toFixed(2)})`
                 );
 
-                processOrder(customerId, customerCredit);
+                processOrder(customerId, netBalance);
               }
             );
           } else {

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin - All Orders</title>
+    <link rel="stylesheet" href="/css/styles.css" />
+  </head>
+  <body>
+    <div class="container">
+      <h1>Admin Dashboard</h1>
+
+      <form action="/admin" method="GET" class="search-form">
+        <input
+          type="email"
+          name="search"
+          placeholder="Search by customer email..."
+          value="<%= searchEmail || '' %>"
+        />
+        <button type="submit">Search</button>
+        <% if (searchEmail) { %>
+        <a href="/admin" class="clear-search">Clear</a>
+        <% } %>
+      </form>
+
+      <hr />
+
+      <% if (orders.length === 0) { %>
+      <p>No orders found.</p>
+      <% } else { %>
+
+      <h2>All Orders</h2>
+      <% orders.forEach(order => { %>
+      <div class="order-card">
+        <!-- Order Header -->
+        <div class="order-header">
+          <h3>Order #<%= order.order_id %></h3>
+          <span><%= new Date(order.order_date).toLocaleString() %></span>
+        </div>
+
+        <!-- Customer Info -->
+        <div class="customer-info">
+          <p><strong>Customer:</strong> <%= order.name %></p>
+          <p><strong>Email:</strong> <%= order.email %></p>
+        </div>
+
+        <!-- Order Items -->
+        <div class="order-items">
+          <h4>Items</h4>
+          <ul>
+            <% order.items.forEach(item => { %>
+            <li>
+              <span><%= item.quantity %> x <%= item.item_name %></span>
+              <span>$<%= item.subtotal.toFixed(2) %></span>
+            </li>
+            <% }); %>
+          </ul>
+        </div>
+
+        <!-- Order Summary -->
+        <div class="order-summary">
+          <h4>Order Summary</h4>
+          <p>
+            <strong>Items Subtotal:</strong> $<%= order.itemsSubtotal.toFixed(2)
+            %>
+          </p>
+          <p>
+            <strong>Delivery Fee:</strong> $<%= order.delivery_fee.toFixed(2) %>
+            <em>(<%= getDeliveryRateInfo(order.itemsSubtotal).rate %>)</em>
+          </p>
+          <p>
+            <strong>Order Subtotal:</strong> $<%= order.total_price.toFixed(2)
+            %>
+          </p>
+
+          <% if (order.previousBalance !== 0) { %>
+          <p>
+            <strong>Previous Balance:</strong> $<%=
+            order.previousBalance.toFixed(2) %>
+          </p>
+          <% } %> <% const currentBalance = order.total_price +
+          order.previousBalance; %>
+          <p>
+            <strong>Current Balance:</strong> $<%= currentBalance.toFixed(2) %>
+          </p>
+
+          <p><strong>Status:</strong> <%= order.status %></p>
+
+          <% if (order.payments > 0) { %>
+          <div class="payment-info">
+            <p>
+              <strong>Payments Made:</strong>
+              <span style="color: green"
+                >-$<%= order.payments.toFixed(2) %></span
+              >
+            </p>
+            <p>
+              <strong>Final Balance Due:</strong>
+              <strong
+                >$<%= (currentBalance - order.payments).toFixed(2) %></strong
+              >
+            </p>
+          </div>
+          <% } %>
+        </div>
+
+        <!-- Admin Actions -->
+        <div class="admin-actions">
+          <form action="/admin/record-payment" method="POST">
+            <input
+              type="hidden"
+              name="order_id"
+              value="<%= order.order_id %>"
+            />
+            <input
+              type="number"
+              name="payment_amount"
+              placeholder="0.00"
+              step="0.01"
+              required
+            />
+            <button type="submit">Record Payment</button>
+          </form>
+          <form action="/admin/update-delivery" method="POST">
+            <input
+              type="hidden"
+              name="order_id"
+              value="<%= order.order_id %>"
+            />
+            <input
+              type="number"
+              name="new_delivery_fee"
+              value="<%= order.delivery_fee.toFixed(2) %>"
+              step="0.01"
+              required
+            />
+            <button type="submit">Update Delivery</button>
+          </form>
+        </div>
+      </div>
+      <% }); %> <% } %>
+    </div>
+  </body>
+</html>
