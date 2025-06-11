@@ -45,6 +45,8 @@ const productRoutes = require("./routes/products");
 const customerRoutes = require("./routes/customers");
 const adminRoutes = require("./routes/admin");
 
+app.use(express.static("public"));
+
 app.use("/products", productRoutes);
 app.use("/orders", customerRoutes); // customers submit orders here
 app.use("/admin", adminRoutes); // admin dashboard
