@@ -151,14 +151,14 @@
         margin: 15px 0;
       }
 
-      .pricing-comparison {
+      /* .pricing-comparison {
         background: #f8f9fa;
         padding: 10px;
         border-radius: 4px;
         margin: 10px 0;
         font-size: 12px;
         border-left: 3px solid #6c757d;
-      }
+      } */
 
       .balance-positive {
         color: #28a745;
@@ -184,7 +184,9 @@
         border-radius: 8px;
       "
     >
-      <h2 style="margin: 0 0 15px 0; color: #856404">
+
+
+      <!-- <h2 style="margin: 0 0 15px 0; color: #856404">
         ⚠ Outstanding Customer Balances
       </h2>
       <div style="display: grid; gap: 10px">
@@ -220,7 +222,7 @@
     </div>
     <% } %> <% if (orders.length === 0) { %>
     <p>No orders found.</p>
-    <% } else { %>
+    <% } else { %> -->
 
     <h2>All Orders</h2>
     <% orders.forEach(order => { %>
@@ -229,14 +231,14 @@
       <div class="order-header">
         <h3>
           Order #<%= order.order_id %> <% if (order.hasSpecialRate) { %>
-          <span class="special-rate-indicator">*Special Rate Applied</span>
+          <!-- <span class="special-rate-indicator">*Special Rate Applied</span> -->
           <% } %>
         </h3>
         <span><%= new Date(order.order_date).toLocaleString() %></span>
       </div>
 
       <!-- Special Rate Details -->
-      <% if (order.hasSpecialRate && order.specialRateType.length > 0) { %>
+      <!-- <% if (order.hasSpecialRate && order.specialRateType.length > 0) { %>
       <div class="special-rate-details">
         <strong>Special Rate Applied:</strong>
         <ul>
@@ -245,7 +247,7 @@
           <% }); %>
         </ul>
       </div>
-      <% } %>
+      <% } %> -->
 
       <!-- Customer Info -->
       <div class="customer-info">
@@ -289,23 +291,26 @@
         </p>
         <p>
           <strong>Delivery Fee:</strong> $<%= order.delivery_fee.toFixed(2) %>
-          <em
+
+          <em>(<%= order.deliveryRateLabel %>)</em>
+
+          <!-- <em
             >(<%= order.delivery_fee == 10 ? '$10.00 flat rate' :
             getDeliveryRateInfo(order.itemsSubtotal).rate %>)</em
-          >
+          > -->
           <% if (Math.abs(order.delivery_fee - order.standardDeliveryFee) >
           0.01) { %>
-          <em style="color: #ff6b35">
+          <!-- <em style="color: #ff6b35">
             (Standard: $<%= order.standardDeliveryFee.toFixed(2) %>)
-          </em>
+          </em> -->
           <% } %>
         </p>
         <p>
           <strong>Order Subtotal:</strong> $<%= order.total_price.toFixed(2) %>
           <% if (order.total_price < order.standardTotal - 0.01) { %>
-          <em style="color: #ff6b35">
+          <!-- <em style="color: #ff6b35">
             (Standard: $<%= order.standardTotal.toFixed(2) %>)
-          </em>
+          </em> -->
           <% } %>
         </p>
 
@@ -355,7 +360,7 @@
       </div>
 
       <!-- Pricing Comparison (for special rate orders) -->
-      <% if (order.hasSpecialRate) { %>
+      <!-- <% if (order.hasSpecialRate) { %>
       <div class="pricing-comparison">
         <strong>Pricing Comparison:</strong><br />
         Standard Total: $<%= order.standardTotal.toFixed(2) %> | Current Total:
@@ -372,7 +377,7 @@
         >
         <% } %>
       </div>
-      <% } %>
+      <% } %> -->
 
       <!-- Admin Controls -->
       <div class="controls">
@@ -398,7 +403,7 @@
           </form>
 
           <!-- Adjust Delivery Fee -->
-          <form
+          <!-- <form
             method="POST"
             action="/admin/adjust-delivery/<%= order.order_id %>"
           >
@@ -416,7 +421,7 @@
             <button type="submit" class="btn btn-warning">
               Update Delivery
             </button>
-          </form>
+          </form> -->
 
           <!-- Apply Discount -->
           <form

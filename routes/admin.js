@@ -7,13 +7,13 @@ function getDeliveryRateInfo(itemsSubtotal) {
   if (itemsSubtotal < 50) {
     return { rate: "$10.00 flat rate", percentage: null };
   } else if (itemsSubtotal >= 50 && itemsSubtotal < 100) {
-    return { rate: "18% of items subtotal", percentage: 18 };
+    return { rate: "18% price tier", percentage: 18 };
   } else if (itemsSubtotal >= 100 && itemsSubtotal < 150) {
-    return { rate: "16% of items subtotal", percentage: 16 };
+    return { rate: "16% price tier", percentage: 16 };
   } else if (itemsSubtotal >= 150 && itemsSubtotal < 200) {
-    return { rate: "14% of items subtotal", percentage: 14 };
+    return { rate: "14% price tier", percentage: 14 };
   } else {
-    return { rate: "12% of items subtotal", percentage: 12 };
+    return { rate: "12% price tier", percentage: 12 };
   }
 }
 
@@ -140,6 +140,7 @@ router.get("/", (req, res) => {
         order.itemsSubtotal = itemsSubtotal;
         order.standardDeliveryFee = standardDeliveryFee;
         order.standardTotal = standardTotal;
+        order.deliveryRateLabel = getDeliveryRateInfo(itemsSubtotal).rate;
       });
 
       // Calculate customer totals for summary (sum all balances per customer)
