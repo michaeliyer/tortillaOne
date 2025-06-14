@@ -114,28 +114,6 @@
         padding-top: 8px;
         margin-top: 10px;
       }
-      .balance {
-        margin-top: 10px;
-        padding: 10px;
-        border-radius: 5px;
-        font-weight: bold;
-      }
-      .balance.paid {
-        background-color: #d4edda;
-        color: #155724;
-      }
-      .balance.partial {
-        background-color: #fff3cd;
-        color: #856404;
-      }
-      .balance.unpaid {
-        background-color: #f8d7da;
-        color: #721c24;
-      }
-      .balance.credit {
-        background-color: #cce7ff;
-        color: #004085;
-      }
       .links {
         text-align: center;
         margin-top: 30px;
@@ -219,61 +197,9 @@
           <span>Order Total:</span>
           <span>$<%= order.total_price.toFixed(2) %></span>
         </div>
-
-        <% if (order.payments > 0) { %>
-        <div class="pricing-row">
-          <span>Payments Made:</span>
-          <span>$<%= order.payments.toFixed(2) %></span>
-        </div>
-        <% } %>
       </div>
-
-      <% if (order.balance < 0) { %>
-      <div class="balance credit">
-        ✓ Credit Balance: $<%= Math.abs(order.balance).toFixed(2) %>
-      </div>
-      <% } else if (order.balance === 0) { %>
-      <div class="balance paid">✓ Fully Paid</div>
-      <% } else if (order.payments > 0) { %>
-      <div class="balance partial">
-        ⚠ Partial Payment - Balance Due: $<%= order.balance.toFixed(2) %>
-      </div>
-      <% } else { %>
-      <div class="balance unpaid">
-        💳 Balance Due: $<%= order.balance.toFixed(2) %>
-      </div>
-      <% } %>
     </div>
-    <% }) %> <% if (totalBalance !== 0) { %>
-    <div
-      style="
-        background: #f0f8ff;
-        border: 2px solid #4caf50;
-        padding: 20px;
-        border-radius: 8px;
-        margin: 20px 0;
-        text-align: center;
-      "
-    >
-      <h3 style="margin: 0 0 15px 0; color: #333">Account Summary</h3>
-
-      <% if (totalBalance < 0) { %>
-      <div style="font-size: 18px; font-weight: bold; color: #155724">
-        ✓ Total Credit Balance: $<%= Math.abs(totalBalance).toFixed(2) %>
-      </div>
-      <p style="margin: 5px 0 0 0; color: #666; font-size: 14px">
-        You have credits that will be applied to future orders
-      </p>
-      <% } else { %>
-      <div style="font-size: 18px; font-weight: bold; color: #721c24">
-        💳 Total Amount Due: $<%= totalBalance.toFixed(2) %>
-      </div>
-      <p style="margin: 5px 0 0 0; color: #666; font-size: 14px">
-        Combined balance across all orders
-      </p>
-      <% } %>
-    </div>
-    <% } %>
+    <% }) %>
 
     <div class="links">
       <a href="/my-orders">← Look Up Different Email</a>
