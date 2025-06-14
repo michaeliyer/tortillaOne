@@ -49,6 +49,7 @@ router.get("/", (req, res) => {
       return res.render("admin", {
         orders: [],
         customerSummary: [],
+        selectedDate: "",
         getDeliveryRateInfo,
       });
 
@@ -80,6 +81,19 @@ router.get("/", (req, res) => {
         ordersByEmail[email].sort(
           (a, b) => new Date(a.order_date) - new Date(b.order_date)
         );
+      });
+
+      // Identify the most recent order for each customer
+      const mostRecentOrdersByCustomer = {};
+      orders.forEach((order) => {
+        const customerKey = `${order.customer_id}-${order.email}`;
+        if (
+          !mostRecentOrdersByCustomer[customerKey] ||
+          new Date(order.order_date) >
+            new Date(mostRecentOrdersByCustomer[customerKey].order_date)
+        ) {
+          mostRecentOrdersByCustomer[customerKey] = order;
+        }
       });
 
       // Attach items to their matching order and calculate previous balances
@@ -141,6 +155,11 @@ router.get("/", (req, res) => {
         order.standardDeliveryFee = standardDeliveryFee;
         order.standardTotal = standardTotal;
         order.deliveryRateLabel = getDeliveryRateInfo(itemsSubtotal).rate;
+
+        // Determine if this order should show admin controls
+        const customerKey = `${order.customer_id}-${order.email}`;
+        order.showAdminControls =
+          mostRecentOrdersByCustomer[customerKey].order_id === order.order_id;
       });
 
       // Calculate customer totals for summary (sum all balances per customer)
@@ -170,6 +189,7 @@ router.get("/", (req, res) => {
       res.render("admin", {
         orders,
         customerSummary: customerSummary || [],
+        selectedDate: "",
         getDeliveryRateInfo,
       });
     });
