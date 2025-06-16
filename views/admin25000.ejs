@@ -205,6 +205,23 @@
           </form>
 
           <!-- Discount Controls -->
+          <% const currentDiscount = order.standardTotal - order.total_price; %>
+          <% if (currentDiscount > 0.01) { %>
+          <!-- Show current discount and cancel option -->
+          <div style="margin-bottom: 15px">
+            <div
+              style="
+                margin-bottom: 10px;
+                padding: 8px;
+                background-color: #fff3cd;
+                border-radius: 4px;
+              "
+            >
+              <small
+                ><strong>Current Discount:</strong> $<%=
+                currentDiscount.toFixed(2) %></small
+              >
+            </div>
 
             <form
               method="POST"
