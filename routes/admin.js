@@ -270,23 +270,82 @@ router.post("/add-discount/:id", (req, res) => {
     return res.status(400).send("Invalid discount amount.");
   }
 
-  // Get current order details
+  // Get current order details and items to recalculate standardTotal
   db.get(
-    "SELECT total_price FROM orders WHERE order_id = ?",
+    `SELECT o.order_id, o.delivery_fee FROM orders o WHERE o.order_id = ?`,
     [orderId],
     (err, order) => {
       if (err) return res.status(500).send("Error retrieving order.");
       if (!order) return res.status(404).send("Order not found.");
 
-      // Apply discount by reducing total price
-      const newTotalPrice = Math.max(0, order.total_price - discountAmount);
+      db.all(
+        `SELECT subtotal FROM order_items WHERE order_id = ?`,
+        [orderId],
+        (err, items) => {
+          if (err) return res.status(500).send("Error retrieving items.");
 
-      db.run(
-        "UPDATE orders SET total_price = ? WHERE order_id = ?",
-        [newTotalPrice, orderId],
-        (err) => {
-          if (err) return res.status(500).send("Failed to apply discount.");
-          res.redirect("/admin");
+          const itemsSubtotal = items.reduce(
+            (sum, item) => sum + item.subtotal,
+            0
+          );
+          // Recalculate standard delivery fee and total
+          const standardDeliveryFee =
+            calculateStandardDeliveryFee(itemsSubtotal);
+          const standardTotal = itemsSubtotal + standardDeliveryFee;
+
+          // Apply discount from standardTotal
+          const newTotalPrice = Math.max(0, standardTotal - discountAmount);
+
+          db.run(
+            "UPDATE orders SET total_price = ? WHERE order_id = ?",
+            [newTotalPrice, orderId],
+            (err) => {
+              if (err) return res.status(500).send("Failed to apply discount.");
+              res.redirect("/admin");
+            }
+          );
+        }
+      );
+    }
+  );
+});
+
+// POST route to cancel/remove discount
+router.post("/cancel-discount/:id", (req, res) => {
+  const orderId = req.params.id;
+  // Get current order details and items to recalculate standardTotal
+  db.get(
+    `SELECT o.order_id, o.delivery_fee FROM orders o WHERE o.order_id = ?`,
+    [orderId],
+    (err, order) => {
+      if (err) return res.status(500).send("Error retrieving order.");
+      if (!order) return res.status(404).send("Order not found.");
+
+      db.all(
+        `SELECT subtotal FROM order_items WHERE order_id = ?`,
+        [orderId],
+        (err, items) => {
+          if (err) return res.status(500).send("Error retrieving items.");
+
+          const itemsSubtotal = items.reduce(
+            (sum, item) => sum + item.subtotal,
+            0
+          );
+          // Recalculate standard delivery fee and total
+          const standardDeliveryFee =
+            calculateStandardDeliveryFee(itemsSubtotal);
+          const standardTotal = itemsSubtotal + standardDeliveryFee;
+
+          // Restore to pre-discount value
+          db.run(
+            "UPDATE orders SET total_price = ? WHERE order_id = ?",
+            [standardTotal, orderId],
+            (err) => {
+              if (err)
+                return res.status(500).send("Failed to cancel discount.");
+              res.redirect("/admin");
+            }
+          );
         }
       );
     }
