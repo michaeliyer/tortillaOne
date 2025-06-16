@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <link rel="stylesheet" type="text/css" href="/css/admin.css" />
+    <title>Admin Dashboard</title>
+  </head>
+  <body>
+    <h1>Admin Dashboard</h1>
+
+    <% if (orders.length === 0) { %>
+    <p>No orders found.</p>
+    <% } else { %>
+
+    <h2>All Orders</h2>
+    <% orders.forEach(order => { %>
+    <div class="order-card <%= order.hasSpecialRate ? 'special-rate' : '' %>">
+      <!-- Order Header -->
+      <div class="order-header">
+        <h3>
+          Order #<%= order.order_id %> <% if (order.hasSpecialRate) { %>
+          <!-- <span class="special-rate-indicator">*Special Rate Applied</span> -->
+          <% } %>
+        </h3>
+        <span><%= new Date(order.order_date).toLocaleString() %></span>
+      </div>
+
+      <!-- Special Rate Details -->
+      <!-- <% if (order.hasSpecialRate && order.specialRateType.length > 0) { %>
+      <div class="special-rate-details">
+        <strong>Special Rate Applied:</strong>
+        <ul>
+          <% order.specialRateType.forEach(type => { %>
+          <li><%= type %></li>
+          <% }); %>
+        </ul>
+      </div>
+      <% } %> -->
+
+      <!-- Customer Info -->
+      <div class="customer-info">
+        <h4>Customer Details</h4>
+        <p><strong>Name:</strong> <%= order.name %></p>
+        <p><strong>Phone:</strong> <%= order.phone %></p>
+        <p><strong>Email:</strong> <%= order.email %></p>
+        <p><strong>Address:</strong> <%= order.address %></p>
+      </div>
+
+      <!-- Order Items -->
+      <div class="order-items">
+        <h4>Items Ordered</h4>
+        <table>
+          <thead>
+            <tr>
+              <th>Item</th>
+              <th>Quantity</th>
+              <th>Price</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% order.items.forEach(item => { %>
+            <tr>
+              <td><%= item.color %> <%= item.variant %></td>
+              <td><%= item.quantity %></td>
+              <td>$<%= item.subtotal.toFixed(2) %></td>
+            </tr>
+            <% }); %>
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Order Summary -->
+      <div class="order-summary">
+        <h4>Order Summary</h4>
+
+        <p>
+          <strong>Items Subtotal:</strong> $<%= order.itemsSubtotal.toFixed(2)
+          %>
+        </p>
+        <p>
+          <strong>Delivery Fee:</strong> $<%= order.delivery_fee.toFixed(2) %>
+
+          <em>(<%= order.deliveryRateLabel %>)</em>
+
+          <!-- <em
+            >(<%= order.delivery_fee == 10 ? '$10.00 flat rate' :
+            getDeliveryRateInfo(order.itemsSubtotal).rate %>)</em
+          > -->
+          <% if (Math.abs(order.delivery_fee - order.standardDeliveryFee) >
+          0.01) { %>
+          <!-- <em style="color: #ff6b35">
+            (Standard: $<%= order.standardDeliveryFee.toFixed(2) %>)
+          </em> -->
+          <% } %>
+        </p>
+        <p>
+          <strong>Order Subtotal:</strong> $<%= order.total_price.toFixed(2) %>
+          <% if (order.total_price < order.standardTotal - 0.01) { %>
+          <!-- <em style="color: #ff6b35">
+            (Standard: $<%= order.standardTotal.toFixed(2) %>)
+          </em> -->
+          <% } %>
+        </p>
+
+        <% if (order.previousBalance !== 0) { %> <% if (order.previousBalance >
+        0) { %>
+        <p>
+          <strong>Previous Balance:</strong>
+          <span style="color: #dc3545"
+            >$<%= order.previousBalance.toFixed(2) %></span
+          >
+        </p>
+        <% } else { %>
+        <p>
+          <strong>Previous Balance:</strong>
+          <span style="color: #28a745"
+            >-$<%= Math.abs(order.previousBalance).toFixed(2) %></span
+          >
+          <em style="color: #28a745">(Credit)</em>
+        </p>
+        <% } %> <% } %> <% if (order.payments > 0) { %>
+        <p>
+          <strong>Payments Made:</strong>
+          <span style="color: #28a745">-$<%= order.payments.toFixed(2) %></span>
+        </p>
+        <% } %>
+
+        <hr style="margin: 10px 0; border: 1px solid #ddd" />
+
+        <% const currentBalance = order.total_price - order.payments +
+        order.previousBalance; %> <% const isCredit = currentBalance < 0; %> <%
+        const balanceDisplayValue = Math.abs(currentBalance); %>
+        <p style="font-size: 16px">
+          <strong
+            ><%= isCredit ? 'Current Credit:' : 'Current Balance:' %></strong
+          >
+          <span
+            style="color: <%= isCredit ? '#007bff' : '#dc3545' %>; font-weight: bold;"
+          >
+            <% if (isCredit) { %>-<% } %>$<%= balanceDisplayValue.toFixed(2) %>
+          </span>
+          <% if (isCredit) { %>
+          <em style="color: #007bff">(Credit)</em>
+          <% } %>
+        </p>
+
+        <p><strong>Status:</strong> <%= order.status %></p>
+      </div>
+
+      <!-- Pricing Comparison (for special rate orders) -->
+      <!-- <% if (order.hasSpecialRate) { %>
+      <div class="pricing-comparison">
+        <strong>Pricing Comparison:</strong><br />
+        Standard Total: $<%= order.standardTotal.toFixed(2) %> | Current Total:
+        $<%= order.total_price.toFixed(2) %> | <% if (order.standardTotal >
+        order.total_price) { %>
+        <span style="color: #28a745"
+          >Savings: $<%= (order.standardTotal - order.total_price).toFixed(2)
+          %></span
+        >
+        <% } else if (order.standardTotal < order.total_price) { %>
+        <span style="color: #dc3545"
+          >Additional: $<%= (order.total_price - order.standardTotal).toFixed(2)
+          %></span
+        >
+        <% } %>
+      </div>
+      <% } %> -->
+
+      <!-- Admin Controls (Only for most recent order per customer) -->
+      <% if (order.showAdminControls) { %>
+      <div class="controls">
+        <h4>Admin Controls</h4>
+        <div
+          style="
+            background-color: #e8f5e8;
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 4px;
+            border-left: 4px solid #28a745;
+          "
+        >
+          <small
+            ><strong>Note:</strong> Admin controls are only shown for the most
+            recent order per customer.</small
+          >
+        </div>
+
+        <div class="control-row">
+          <!-- Record Payment -->
+          <form method="POST" action="/admin/pay/<%= order.order_id %>">
+            <div class="control-group">
+              <label>Record Payment:</label>
+              <input
+                type="number"
+                name="payment"
+                step="0.01"
+                min="0.01"
+                placeholder="Amount"
+                required
+              />
+            </div>
+            <button type="submit" class="btn btn-success">
+              Record Payment
+            </button>
+          </form>
+
+          <!-- Discount Controls -->
+
+            <form
+              method="POST"
+              action="/admin/cancel-discount/<%= order.order_id %>"
+              style="display: inline"
+            >
+              <button
+                type="submit"
+                class="btn btn-warning"
+                onclick="return confirm('Remove discount and restore original price?')"
+              >
+                Cancel Discount
+              </button>
+            </form>
+          </div>
+          <% } %>
+          <form
+            method="POST"
+            action="/admin/add-discount/<%= order.order_id %>"
+            style="display: inline"
+          >
+            <div class="control-group">
+              <label>Apply Discount:</label>
+              <input
+                type="number"
+                name="discount"
+                step="0.01"
+                min="0.01"
+                placeholder="Amount"
+                required
+              />
+            </div>
+            <button type="submit" class="btn btn-danger">Apply Discount</button>
+          </form>
+        </div>
+
+        <!-- Order Status Controls -->
+        <div
+          class="control-row"
+          style="
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid #ddd;
+          "
+        >
+          <% if (order.status === 'open') { %>
+          <!-- Mark as Delivered -->
+          <form
+            method="POST"
+            action="/admin/mark-delivered/<%= order.order_id %>"
+          >
+            <button
+              type="submit"
+              class="btn btn-primary"
+              onclick="return confirm('Mark this order as delivered?')"
+            >
+              ✓ Mark as Delivered
+            </button>
+          </form>
+          <% } else { %>
+          <!-- Reopen Order -->
+          <form method="POST" action="/admin/reopen/<%= order.order_id %>">
+            <button
+              type="submit"
+              class="btn btn-warning"
+              onclick="return confirm('Reopen this order?')"
+            >
+              ↻ Reopen Order
+            </button>
+          </form>
+          <% } %>
+
+          <!-- Order Status Display -->
+          <div style="display: flex; align-items: center; margin-left: 15px">
+            <strong>Status: </strong>
+            <span
+              style="padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; margin-left: 5px; background-color: <%= order.status === 'open' ? '#28a745' : '#6c757d' %>; color: white;"
+            >
+              <%= order.status === 'open' ? 'OPEN' : 'DELIVERED' %>
+            </span>
+          </div>
+        </div>
+      </div>
+      <% } else { %>
+      <!-- Order Status Display Only (for older orders) -->
+      <div
+        style="
+          padding: 15px;
+          background-color: #f8f9fa;
+          border-radius: 4px;
+          margin-top: 15px;
+        "
+      >
+        <div style="display: flex; align-items: center">
+          <strong>Status: </strong>
+          <span
+            style="padding: 4px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; margin-left: 5px; background-color: <%= order.status === 'open' ? '#28a745' : '#6c757d' %>; color: white;"
+          >
+            <%= order.status === 'open' ? 'OPEN' : 'DELIVERED' %>
+          </span>
+          <small style="margin-left: 15px; color: #666">
+            (Admin controls available on most recent order for this customer)
+          </small>
+        </div>
+      </div>
+      <% } %>
+    </div>
+    <% }); %> <% } %>
+  </body>
+</html>
